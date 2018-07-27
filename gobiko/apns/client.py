@@ -16,7 +16,7 @@ from .exceptions import (
     PartialBulkMessage
 )
 
-from .utils import validate_private_key, wrap_private_key
+from .utils import validate_private_key
 
 
 ALGORITHM = 'ES256'
@@ -41,9 +41,8 @@ APNSResponse = APNSResponseStruct(**APNS_RESPONSE_CODES)
 
 class APNsClient(object):
 
-    def __init__(self, team_id, auth_key_id, 
-            auth_key=None, auth_key_filepath=None, bundle_id=None, use_sandbox=False, force_proto=None, wrap_key=False
-        ):
+    def __init__(self, team_id, auth_key_id,
+                 auth_key=None, auth_key_filepath=None, bundle_id=None, use_sandbox=False, force_proto=None):
 
         if not (auth_key_filepath or auth_key):
             raise ImproperlyConfigured(
@@ -59,8 +58,6 @@ class APNsClient(object):
                 raise ImproperlyConfigured("The APNS auth key file at %r is not readable: %s" % (auth_key_filepath, e))
 
         validate_private_key(auth_key)
-        if wrap_key:
-            auth_key = wrap_private_key(auth_key) # Some have had issues with keys that aren't wrappd to 64 lines
 
         self.team_id = team_id
         self.bundle_id = bundle_id
@@ -116,7 +113,7 @@ class APNsClient(object):
                 'iat': time.time()
             },
             self.auth_key,
-            algorithm= ALGORITHM,
+            algorithm=ALGORITHM,
             headers={
                 'alg': ALGORITHM,
                 'kid': self.auth_key_id,
@@ -124,53 +121,16 @@ class APNsClient(object):
         )
         return token.decode('ascii')
 
-    def _send_message(self, registration_id, alert, 
-            badge=None, sound=None, category=None, content_available=False,
-            mutable_content=False,
-            action_loc_key=None, loc_key=None, loc_args=[], extra={}, 
-            identifier=None, expiration=None, priority=10, 
-            connection=None, auth_token=None, bundle_id=None, topic=None
-        ):
+    def _send_message(self, registration_id, alert,
+                      identifier=None, expiration=None, priority=10,
+                      connection=None, auth_token=None, bundle_id=None, topic=None):
         if not (topic or bundle_id or self.bundle_id):
             raise ImproperlyConfigured(
                 'You must provide your bundle_id if you do not specify a topic'
             )
 
-        data = {}
-        aps_data = {}
-
-        if action_loc_key or loc_key or loc_args:
-            alert = {"body": alert} if alert else {}
-            if action_loc_key:
-                alert["action-loc-key"] = action_loc_key
-            if loc_key:
-                alert["loc-key"] = loc_key
-            if loc_args:
-                alert["loc-args"] = loc_args
-
-        if alert is not None:
-            aps_data["alert"] = alert
-
-        if badge is not None:
-            aps_data["badge"] = badge
-
-        if sound is not None:
-            aps_data["sound"] = sound
-
-        if category is not None:
-            aps_data["category"] = category
-
-        if content_available:
-            aps_data["content-available"] = 1
-
-        if mutable_content:
-            aps_data["mutable-content"] = 1
-
-        data["aps"] = aps_data
-        data.update(extra)
-
         # Convert to json, avoiding unnecessary whitespace with separators (keys sorted for tests)
-        json_data = json.dumps(data, separators=(",", ":"), sort_keys=True).encode("utf-8")
+        json_data = json.dumps(alert.dict(), separators=(",", ":"), sort_keys=True).encode("utf-8")
 
         if len(json_data) > MAX_NOTIFICATION_SIZE:
             raise PayloadTooLarge("Notification body cannot exceed %i bytes" % (MAX_NOTIFICATION_SIZE))
