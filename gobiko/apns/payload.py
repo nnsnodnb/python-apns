@@ -1,11 +1,15 @@
 class PayloadAlert(object):
     def __init__(self, title=None, title_localized_key=None, title_localized_args=None,
+                 subtitle=None, subtitle_loc_key=None, subtitle_loc_args=None,
                  body=None, body_localized_key=None, body_localized_args=None,
                  action_localized_key=None, action=None,
                  launch_image=None):
         self.title = title
         self.title_localized_key = title_localized_key
         self.title_localized_args = title_localized_args
+        self.subtitle = subtitle
+        self.subtitle_loc_key = subtitle_loc_key
+        self.subtitle_loc_args = subtitle_loc_args
         self.body = body
         self.body_localized_key = body_localized_key
         self.body_localized_args = body_localized_args
@@ -22,6 +26,13 @@ class PayloadAlert(object):
             result['title-loc-key'] = self.title_localized_key
         if self.title_localized_args:
             result['title-loc-args'] = self.title_localized_args
+
+        if self.subtitle:
+            result['subtitle'] = self.subtitle
+        if self.subtitle_loc_key:
+            result['subtitle-loc-key'] = self.subtitle_loc_key
+        if self.subtitle_loc_args:
+            result['subtitle-loc-args'] = self.subtitle_loc_args
 
         if self.body:
             result['body'] = self.body
